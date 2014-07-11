@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	_ "image/png"
-	"log"
+	"io"
+	"os"
 
 	"image"
 	"image/color"
 	"sort"
+	"strconv"
 )
 
 type dpDir image.Point
@@ -70,6 +72,7 @@ func (cb colorBlock) Bounds() (r *image.Rectangle) {
 
 type interpreter struct {
 	img image.Image
+	stack
 	dp  dpDir
 	cc  ccDir
 	pos image.Point
@@ -125,6 +128,26 @@ func (i *interpreter) rotateDp() {
 	}
 }
 
+func (i *interpreter) pointer() {
+	count := i.pop()
+	if count < 0 {
+		panic("negative count not implemented")
+	}
+	for j := 0; j < count; j++ {
+		i.rotateDp()
+	}
+}
+
+func (i *interpreter) switchCc() {
+	count := i.pop()
+	if count < 0 {
+		count = -count
+	}
+	if count%2 == 1 {
+		i.toggleCc()
+	}
+}
+
 func (i *interpreter) toggleCc() {
 	if i.cc == left {
 		i.cc = right
@@ -133,13 +156,31 @@ func (i *interpreter) toggleCc() {
 	}
 }
 
+// TODO switch from os.Std* to letting the caller pass their own streams
+func (i *interpreter) inNum() {
+	panic("not implemented")
+}
+
+func (i *interpreter) inChar() {
+	panic("not implemented")
+}
+
+func (i *interpreter) outNum() {
+	io.WriteString(os.Stdout, strconv.Itoa(i.pop()))
+}
+
+func (i *interpreter) outChar() {
+	os.Stdout.Write([]byte{byte(i.pop())})
+}
+
 // getColorBlock returns the current color block.
 func (i *interpreter) getColorBlock() (block colorBlock) {
 	currentColor := i.color()
 	block = map[image.Point]struct{}{
 		i.pos: struct{}{},
 	}
-	// very naive implementation currently
+	// very naive implementation currently. At the very least we should be able
+	// to cache the current block.
 	done := false
 	for !done {
 		done = true
@@ -148,8 +189,8 @@ func (i *interpreter) getColorBlock() (block colorBlock) {
 				if newPos.In(i.img.Bounds()) {
 					_, inBlock := block[newPos]
 					if !inBlock && sameColors(i.img.At(newPos.X, newPos.Y), currentColor) {
-            block[newPos] = struct{}{}
-            done = false
+						block[newPos] = struct{}{}
+						done = false
 					}
 				}
 			}
@@ -158,43 +199,166 @@ func (i *interpreter) getColorBlock() (block colorBlock) {
 	return
 }
 
-func (i interpreter) canMoveTo(p image.Point) bool {
-	return p.In(i.img.Bounds()) && !sameColors(color.Black, i.img.At(p.X, p.Y))
+// Whether the interpreter is currently able to move, without changing its DP or CC.
+func (i interpreter) canMove() bool {
+	newPos := i.pos.Add(image.Point(i.dp))
+	return newPos.In(i.img.Bounds()) &&
+		!sameColors(color.Black, i.img.At(newPos.X, newPos.Y))
 }
 
 // move causes the interpreter to attempt execute a single move.
 // Returns whether the move was successful.
 func (i *interpreter) move() bool {
+	// First, move to the edge of the current block.
+	i.moveWithinBlock()
+	// Then, try to move into the next block.
+	if i.canMove() {
+		newPos := i.pos.Add(image.Point(i.dp))
+		oldColor := i.color()
+		blockSize := len(i.getColorBlock())
+
+		i.pos = newPos
+		i.colorChange(oldColor, blockSize)
+
+		return true
+	}
+
+	return i.recovery()
+}
+
+func (i *interpreter) recovery() bool {
 	originalDp := i.dp
 	originalCc := i.cc
 
 	// When true, toggle the CC. When false, rotate the DP.
 	cc := true
 
-	for {
-		// First, move to the edge of the current block.
-		i.pos = *i.newPosInBlock()
-		// Then, try to move into the next block.
-		newPos := i.pos.Add(image.Point(i.dp))
-		if i.canMoveTo(newPos) {
-			i.pos = newPos
-      if i.pos.X == 4 && i.pos.Y  == 8 {
-        log.Println("Should be halting!")
-      }
-			return true
-		}
-
+	for !i.canMove() {
 		if cc {
 			i.toggleCc()
 		} else {
 			i.rotateDp()
 		}
 		if i.dp == originalDp && i.cc == originalCc {
-      log.Println("Halting!")
 			return false
 		}
 
+		i.moveWithinBlock()
 		cc = !cc
+	}
+
+	return true
+}
+
+// hue: 0=red, 1=yellow, etc.
+// lightness: 0=light, 1=normal, 2=dark
+func colorInfo(c color.Color) (hue, lightness int) {
+	r, g, b, _ := c.RGBA()
+	switch {
+	case r == 0xFFFF && g == 0xFFFF && b == 0xFFFF:
+		fallthrough
+	case r == 0x0000 && g == 0x0000 && b == 0x0000:
+		panic("No color info for white or black")
+
+	case r == 0xFFFF && g == 0xC0C0 && b == 0xC0C0:
+		return 0, 0
+	case r == 0xFFFF && g == 0xFFFF && b == 0xC0C0:
+		return 1, 0
+	case r == 0xC0C0 && g == 0xFFFF && b == 0xC0C0:
+		return 2, 0
+	case r == 0xC0C0 && g == 0xFFFF && b == 0xFFFF:
+		return 3, 0
+	case r == 0xC0C0 && g == 0xC0C0 && b == 0xFFFF:
+		return 4, 0
+	case r == 0xFFFF && g == 0xC0C0 && b == 0xFFFF:
+		return 5, 0
+
+	case r == 0xFFFF && g == 0x0000 && b == 0x0000:
+		return 0, 1
+	case r == 0xFFFF && g == 0xFFFF && b == 0x0000:
+		return 1, 1
+	case r == 0x0000 && g == 0xFFFF && b == 0x0000:
+		return 2, 1
+	case r == 0x0000 && g == 0xFFFF && b == 0xFFFF:
+		return 3, 1
+	case r == 0x0000 && g == 0x0000 && b == 0xFFFF:
+		return 4, 1
+	case r == 0xFFFF && g == 0x0000 && b == 0xFFFF:
+		return 5, 1
+
+	case r == 0xC0C0 && g == 0x0000 && b == 0x0000:
+		return 0, 2
+	case r == 0xC0C0 && g == 0xC0C0 && b == 0x0000:
+		return 1, 2
+	case r == 0x0000 && g == 0xC0C0 && b == 0x0000:
+		return 2, 2
+	case r == 0x0000 && g == 0xC0C0 && b == 0xC0C0:
+		return 3, 2
+	case r == 0x0000 && g == 0x0000 && b == 0xC0C0:
+		return 4, 2
+	case r == 0xC0C0 && g == 0x0000 && b == 0xC0C0:
+		return 5, 2
+	default:
+		panic(c)
+	}
+}
+
+// Called when the color changes to cause the interpreter to do things.
+func (i *interpreter) colorChange(prevColor color.Color, blockSize int) {
+	if sameColors(color.White, prevColor) || sameColors(color.White, i.color()) {
+		return
+	}
+
+	oldHue, oldLightness := colorInfo(prevColor)
+	newHue, newLightness := colorInfo(i.color())
+
+	hueChange := (newHue - oldHue + 6) % 6
+	lightnessChange := (newLightness - oldLightness + 3) % 3
+
+	switch lightnessChange {
+	case 0:
+		switch hueChange {
+		case 1:
+			i.add()
+		case 2:
+			i.divide()
+		case 3:
+			i.greater()
+		case 4:
+			i.duplicate()
+		case 5:
+			i.inChar()
+		}
+	case 1:
+		switch hueChange {
+		case 0:
+			i.push(blockSize)
+		case 1:
+			i.subtract()
+		case 2:
+			i.mod()
+		case 3:
+			i.pointer()
+		case 4:
+			i.roll()
+		case 5:
+			i.outNum()
+		}
+	case 2:
+		switch hueChange {
+		case 0:
+			i.pop()
+		case 1:
+			i.multiply()
+		case 2:
+			i.not()
+		case 3:
+			i.switchCc()
+		case 4:
+			i.inNum()
+		case 5:
+			i.outChar()
+		}
 	}
 }
 
@@ -202,7 +366,17 @@ func (i *interpreter) run() {
 	for i.move() {
 	}
 }
-func (i *interpreter) newPosInBlock() *image.Point {
+
+func (i *interpreter) moveWithinBlock() {
+	if sameColors(color.White, i.color()) {
+		newPos := i.pos.Add(image.Point(i.dp))
+		for sameColors(color.White, i.img.At(newPos.X, newPos.Y)) {
+			i.pos = newPos
+			newPos = i.pos.Add(image.Point(i.dp))
+		}
+		return
+	}
+
 	var newPos *image.Point
 	block := i.getColorBlock()
 	bounds := block.Bounds()
@@ -249,7 +423,7 @@ func (i *interpreter) newPosInBlock() *image.Point {
 			}
 		}
 	}
-	return newPos
+	i.pos = *newPos
 }
 
 func sameColors(c1, c2 color.Color) bool {
