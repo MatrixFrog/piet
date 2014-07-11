@@ -7,12 +7,9 @@ import (
 	"image"
 	"log"
 	"os"
-
-	"github.com/davecheney/profile"
 )
 
 func main() {
-	defer profile.Start(profile.CPUProfile).Stop()
 	reader, err := os.Open(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
