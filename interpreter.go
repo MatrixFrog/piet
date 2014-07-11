@@ -142,22 +142,17 @@ func (i *interpreter) getColorBlock() (block colorBlock) {
 	// very naive implementation currently
 	done := false
 	for !done {
-		newPixels := make([]image.Point, 4)
 		done = true
 		for pos, _ := range block {
 			for _, newPos := range adj(pos) {
 				if newPos.In(i.img.Bounds()) {
 					_, inBlock := block[newPos]
 					if !inBlock && sameColors(i.img.At(newPos.X, newPos.Y), currentColor) {
-						newPixels = append(newPixels, newPos)
-						done = false
+            block[newPos] = struct{}{}
+            done = false
 					}
 				}
 			}
-		}
-
-		for _, p := range newPixels {
-			block[p] = struct{}{}
 		}
 	}
 	return
