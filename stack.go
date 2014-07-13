@@ -4,33 +4,50 @@ type stack struct {
 	data []int
 }
 
+func (s stack) hasAtLeast1() bool {
+	return len(s.data) >= 1
+}
+
+func (s stack) hasAtLeast2() bool {
+	return len(s.data) >= 2
+}
+
 func (s *stack) push(n int) {
 	s.data = append(s.data, n)
 }
 
 func (s *stack) pop() (n int) {
-	if len(s.data) != 0 {
+	if s.hasAtLeast1() {
 		n, s.data = s.data[len(s.data)-1], s.data[0:len(s.data)-1]
 	}
 	return
 }
 
 func (s *stack) add() {
-	x, y := s.pop(), s.pop()
-	s.push(x + y)
+	if s.hasAtLeast2() {
+		x, y := s.pop(), s.pop()
+		s.push(x + y)
+	}
 }
 
 func (s *stack) subtract() {
-	top, second := s.pop(), s.pop()
-	s.push(second - top)
+	if s.hasAtLeast2() {
+		top, second := s.pop(), s.pop()
+		s.push(second - top)
+	}
 }
 
 func (s *stack) multiply() {
-	x, y := s.pop(), s.pop()
-	s.push(x * y)
+	if s.hasAtLeast2() {
+		x, y := s.pop(), s.pop()
+		s.push(x * y)
+	}
 }
 
 func (s *stack) divide() {
+	if !s.hasAtLeast2() {
+		return
+	}
 	top, second := s.pop(), s.pop()
 	if top == 0 {
 		// Put them back so this becomes a no-op.
@@ -42,6 +59,9 @@ func (s *stack) divide() {
 }
 
 func (s *stack) mod() {
+	if !s.hasAtLeast2() {
+		return
+	}
 	top, second := s.pop(), s.pop()
 	if top != 0 {
 		// Put them back so this becomes a no-op.
@@ -52,25 +72,29 @@ func (s *stack) mod() {
 }
 
 func (s *stack) not() {
-	top := s.pop()
-	if top == 0 {
-		s.push(1)
-	} else {
-		s.push(0)
+	if s.hasAtLeast1() {
+		top := s.pop()
+		if top == 0 {
+			s.push(1)
+		} else {
+			s.push(0)
+		}
 	}
 }
 
 func (s *stack) greater() {
-	top, second := s.pop(), s.pop()
-	if second > top {
-		s.push(1)
-	} else {
-		s.push(0)
+	if s.hasAtLeast2() {
+		top, second := s.pop(), s.pop()
+		if second > top {
+			s.push(1)
+		} else {
+			s.push(0)
+		}
 	}
 }
 
 func (s *stack) duplicate() {
-	if len(s.data) != 0 {
+	if s.hasAtLeast1() {
 		top := s.data[len(s.data)-1]
 		s.data = append(s.data, top)
 	}
@@ -78,6 +102,6 @@ func (s *stack) duplicate() {
 
 func (s *stack) roll() {
 	numRolls, depth := s.pop(), s.pop()
-	// TODO
 	_, _ = numRolls, depth
+	panic("Not implemented")
 }
