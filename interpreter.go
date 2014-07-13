@@ -254,11 +254,6 @@ func (i *interpreter) recovery() bool {
 func colorInfo(c color.Color) (hue, lightness int) {
 	r, g, b, _ := c.RGBA()
 	switch {
-	case r == 0xFFFF && g == 0xFFFF && b == 0xFFFF:
-		fallthrough
-	case r == 0x0000 && g == 0x0000 && b == 0x0000:
-		panic("No color info for white or black")
-
 	case r == 0xFFFF && g == 0xC0C0 && b == 0xC0C0:
 		return 0, 0
 	case r == 0xFFFF && g == 0xFFFF && b == 0xC0C0:
@@ -298,6 +293,8 @@ func colorInfo(c color.Color) (hue, lightness int) {
 	case r == 0xC0C0 && g == 0x0000 && b == 0xC0C0:
 		return 5, 2
 	default:
+		// This should only be called for the 18 colors with a well-defined
+		// hue and lightness, not for white, black, or any other color.
 		panic(c)
 	}
 }
