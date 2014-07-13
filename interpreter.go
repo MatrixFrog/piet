@@ -58,14 +58,13 @@ func (cb colorBlock) String() string {
 	return fmt.Sprint(s)
 }
 
-func (cb colorBlock) Bounds() (r *image.Rectangle) {
+func (cb colorBlock) Bounds() (r image.Rectangle) {
 	for p, _ := range cb {
-		if r == nil {
-			r = &image.Rectangle{p, image.Point{p.X + 1, p.Y + 1}}
-		} else {
-			newR := image.Rectangle{p, image.Point{p.X + 1, p.Y + 1}}.Union(*r)
-			r = &newR
-		}
+		r = image.Rectangle{p, image.Point{p.X + 1, p.Y + 1}}
+		break
+	}
+	for p, _ := range cb {
+		r = r.Union(image.Rectangle{p, image.Point{p.X + 1, p.Y + 1}})
 	}
 	return
 }
