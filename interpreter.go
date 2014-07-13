@@ -4,6 +4,7 @@ import (
 	"fmt"
 	_ "image/png"
 	"io"
+	"log"
 	"os"
 
 	"image"
@@ -303,6 +304,7 @@ func colorInfo(c color.Color) (hue, lightness int) {
 func (i *interpreter) colorChange(prevColor color.Color, blockSize int) {
 	if sameColors(color.White, prevColor) || sameColors(color.White, i.color()) {
 		return
+		log.Println(i, "Moving to/from white: no command to execute")
 	}
 
 	oldHue, oldLightness := colorInfo(prevColor)
@@ -311,6 +313,7 @@ func (i *interpreter) colorChange(prevColor color.Color, blockSize int) {
 	hueChange := (newHue - oldHue + 6) % 6
 	lightnessChange := (newLightness - oldLightness + 3) % 3
 
+	log.Println(i, "Hue change:", hueChange, "Lightness change:", lightnessChange)
 	switch lightnessChange {
 	case 0:
 		switch hueChange {
