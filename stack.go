@@ -101,7 +101,22 @@ func (s *stack) duplicate() {
 }
 
 func (s *stack) roll() {
+	if !s.hasAtLeast2() {
+		return
+	}
+
 	numRolls, depth := s.pop(), s.pop()
-	_, _ = numRolls, depth
-	panic("Not implemented")
+	if depth < 0 || depth > len(s.data) {
+		// Undo.
+		s.push(depth)
+		s.push(numRolls)
+		return
+	}
+
+	for i := 0; i < numRolls; i++ {
+		index := len(s.data) - depth
+		val := s.pop()
+		s1, s2 := s.data[0:index], s.data[index:]
+		s.data = append(append(s1, val), s2...)
+	}
 }
