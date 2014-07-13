@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	_ "image/png"
 	"io"
 	"log"
 	"os"
+	"unicode"
 
 	"image"
 	"image/color"
@@ -73,6 +75,8 @@ func (cb colorBlock) Bounds() (r image.Rectangle) {
 type interpreter struct {
 	img image.Image
 	stack
+	io.Writer
+	io.Reader
 	dp  dpDir
 	cc  ccDir
 	pos image.Point
@@ -99,15 +103,21 @@ func (i interpreter) String() string {
 		cc = ">"
 	}
 
-	return fmt.Sprintf("dp:%s, cc:%s, pos:%s", i.pos, dp, cc)
+	return fmt.Sprintf("dp:%s, cc:%s, pos:%s", dp, cc, i.pos)
 }
 
+// Creates a new Piet interpreter for the given image.
+// The interpreter will use os.Stdin and os.Stdout, but these
+// can be changed (for example, for testing) by setting the
+// interpreters Reader or Writer fields.
 func New(img image.Image) interpreter {
 	return interpreter{
-		img: img,
-		dp:  east,
-		cc:  left,
-		pos: img.Bounds().Min,
+		img:    img,
+		Writer: os.Stdout,
+		Reader: os.Stdin,
+		dp:     east,
+		cc:     left,
+		pos:    img.Bounds().Min,
 	}
 }
 
@@ -156,21 +166,57 @@ func (i *interpreter) toggleCc() {
 	}
 }
 
-// TODO switch from os.Std* to letting the caller pass their own streams
+// A SplitFunc which returns sequences of digits.
+func splitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	var b byte
+	for advance, b = range data {
+		if unicode.IsDigit(rune(b)) {
+			token = append(token, b)
+		} else {
+			// Reached a non-digit. Just return what we have.
+			return
+		}
+	}
+	if atEOF {
+		return
+	}
+
+	// 'data' was entirely digits, and we are not at EOF, so signal
+	// the Scanner to keep going.
+	return 0, nil, nil
+}
+
 func (i *interpreter) inNum() {
-	panic("not implemented")
+	s := bufio.NewScanner(i)
+	s.Split(splitFunc)
+	if s.Scan() {
+		n, err := strconv.Atoi(string(s.Bytes()))
+		if err != nil {
+			log.Fatal(err)
+		}
+		i.push(n)
+		return
+	}
+	if err := s.Err(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (i *interpreter) inChar() {
-	panic("not implemented")
+	buf := make([]byte, 1)
+	_, err := i.Read(buf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	i.push(int(buf[0]))
 }
 
 func (i *interpreter) outNum() {
-	io.WriteString(os.Stdout, strconv.Itoa(i.pop()))
+	io.WriteString(i, strconv.Itoa(i.pop()))
 }
 
 func (i *interpreter) outChar() {
-	os.Stdout.Write([]byte{byte(i.pop())})
+	i.Write([]byte{byte(i.pop())})
 }
 
 // getColorBlock returns the current color block.
