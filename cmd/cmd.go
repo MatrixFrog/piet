@@ -5,6 +5,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 
+	"flag"
 	"image"
 	"log"
 	"os"
@@ -12,11 +13,16 @@ import (
 	"github.com/MatrixFrog/piet"
 )
 
+var verbose = flag.Bool("v", false, "verbose")
+
 func main() {
-	if len(os.Args) < 2 {
-		usage()
+	flag.Parse()
+
+	if len(flag.Args()) != 1 {
+		flag.Usage()
 	}
-	reader, err := os.Open(os.Args[1])
+
+	reader, err := os.Open(flag.Arg(0))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -26,12 +32,9 @@ func main() {
 	}
 
 	i := piet.New(m)
+	if *verbose {
+		i.Logger = log.New(os.Stderr, "", 0)
+	}
 	i.Run()
 	println() // In case the Piet program's output didn't end with a newline.
-}
-
-func usage() {
-	log.Println("Usage: " + os.Args[0] + " program")
-	log.Println("program may be a .gif, .jpg, or .png image")
-	os.Exit(1)
 }
