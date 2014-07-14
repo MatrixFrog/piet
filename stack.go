@@ -106,17 +106,19 @@ func (s *stack) roll() {
 	}
 
 	numRolls, depth := s.pop(), s.pop()
-	if depth < 0 || depth > len(s.data) {
+	if depth < 0 || depth >= len(s.data) {
 		// Undo.
 		s.push(depth)
 		s.push(numRolls)
 		return
 	}
 
-	for i := 0; i < numRolls; i++ {
+	for r := 0; r < numRolls; r++ {
 		index := len(s.data) - depth
-		val := s.pop()
-		s1, s2 := s.data[0:index], s.data[index:]
-		s.data = append(append(s1, val), s2...)
+		val := s.data[len(s.data)-1]
+		for i := len(s.data) - 1; i > index; i-- {
+			s.data[i] = s.data[i-1]
+		}
+		s.data[index] = val
 	}
 }
