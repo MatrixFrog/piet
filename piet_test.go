@@ -25,3 +25,18 @@ func TestHelloWorld(t *testing.T) {
 		t.Error("Incorrect output", output)
 	}
 }
+
+// Runs the "artistic" Hello World example from http://www.dangermouse.net/esoteric/piet/samples.html
+func TestArtisticHelloWorld(t *testing.T) {
+	reader, _ := os.Open("testdata/artistic_hw.gif")
+	m, _, _ := image.Decode(reader)
+	outputBuffer := &bytes.Buffer{}
+	i := New(m)
+	i.Writer = outputBuffer
+	i.Run()
+
+	output := outputBuffer.String()
+	if output != "Hello, world!\n" {
+		t.Error("Incorrect output", output)
+	}
+}
