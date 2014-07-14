@@ -93,7 +93,7 @@ type interpreter struct {
 	// The interpeter's current position in the program.
 	pos image.Point
 
-	logger *log.Logger
+	Logger *log.Logger
 }
 
 func (i interpreter) String() string {
@@ -117,7 +117,10 @@ func (i interpreter) String() string {
 		cc = ">"
 	}
 
-	return fmt.Sprintf("dp:%s, cc:%s, pos:%s", dp, cc, i.pos)
+	r, g, b, _ := i.color().RGBA()
+	color := fmt.Sprintf("%02X%02X%02X", r>>8, g>>8, b>>8)
+
+	return fmt.Sprintf("dp:%s, cc:%s, pos:%s, color:%s", dp, cc, i.pos, color)
 }
 
 // Creates a new Piet interpreter for the given image.
@@ -132,7 +135,7 @@ func New(img image.Image) interpreter {
 		dp:     east,
 		cc:     left,
 		pos:    img.Bounds().Min,
-		logger: log.New(ioutil.Discard, "", log.Lshortfile),
+		Logger: log.New(ioutil.Discard, "", log.Lshortfile),
 	}
 }
 
@@ -207,13 +210,13 @@ func (i *interpreter) inNum() {
 	if s.Scan() {
 		n, err := strconv.Atoi(string(s.Bytes()))
 		if err != nil {
-			i.logger.Fatal(err)
+			i.Logger.Fatal(err)
 		}
 		i.push(n)
 		return
 	}
 	if err := s.Err(); err != nil {
-		i.logger.Fatal(err)
+		i.Logger.Fatal(err)
 	}
 }
 
@@ -221,7 +224,7 @@ func (i *interpreter) inChar() {
 	buf := make([]byte, 1)
 	_, err := i.Read(buf)
 	if err != nil {
-		i.logger.Fatal(err)
+		i.Logger.Fatal(err)
 	}
 	i.push(int(buf[0]))
 }
@@ -365,7 +368,7 @@ func colorInfo(c color.Color) (hue, lightness int) {
 func (i *interpreter) colorChange(prevColor color.Color, blockSize int) {
 	if sameColors(color.White, prevColor) || sameColors(color.White, i.color()) {
 		return
-		i.logger.Println(i, "Moving to/from white: no command to execute")
+		i.Logger.Println(i, "Moving to/from white: no command to execute")
 	}
 
 	oldHue, oldLightness := colorInfo(prevColor)
@@ -374,7 +377,7 @@ func (i *interpreter) colorChange(prevColor color.Color, blockSize int) {
 	hueChange := (newHue - oldHue + 6) % 6
 	lightnessChange := (newLightness - oldLightness + 3) % 3
 
-	i.logger.Println(i, "Hue change:", hueChange, "Lightness change:", lightnessChange)
+	i.Logger.Println(i, "H:", hueChange, "L:", lightnessChange)
 	switch lightnessChange {
 	case 0:
 		switch hueChange {
@@ -420,6 +423,7 @@ func (i *interpreter) colorChange(prevColor color.Color, blockSize int) {
 			i.outChar()
 		}
 	}
+	i.Logger.Println("  stack:", i.stack.data)
 }
 
 func (i *interpreter) Run() {
