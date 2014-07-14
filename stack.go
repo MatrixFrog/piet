@@ -113,6 +113,10 @@ func (s *stack) roll() {
 		return
 	}
 
+	if numRolls < 0 {
+		panic("Not implemented")
+	}
+
 	for r := 0; r < numRolls; r++ {
 		index := len(s.data) - depth
 		val := s.data[len(s.data)-1]
