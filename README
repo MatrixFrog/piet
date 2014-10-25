@@ -1,0 +1,6 @@
+A Piet interpreter written in Go.
+
+Piet is a silly esoteric programming language in which programs are images,
+rather than text files.
+
+See http://www.dangermouse.net/esoteric/piet.html for the language spec and sample programs.
