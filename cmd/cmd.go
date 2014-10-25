@@ -20,6 +20,7 @@ func main() {
 
 	if len(flag.Args()) != 1 {
 		flag.Usage()
+		os.Exit(1)
 	}
 
 	reader, err := os.Open(flag.Arg(0))

@@ -291,6 +291,7 @@ func (i *interpreter) move() bool {
 }
 
 func (i *interpreter) recovery() bool {
+	i.Logger.Println("entering recovery.")
 	originalDp := i.dp
 	originalCc := i.cc
 
@@ -304,13 +305,16 @@ func (i *interpreter) recovery() bool {
 			i.rotateDp()
 		}
 		if i.dp == originalDp && i.cc == originalCc {
+			i.Logger.Println("Failed recovery")
 			return false
 		}
 
 		i.moveWithinBlock()
+		i.Logger.Println(i)
 		cc = !cc
 	}
 
+	i.Logger.Println("recovered.")
 	return true
 }
 
@@ -377,7 +381,7 @@ func (i *interpreter) colorChange(prevColor color.Color, blockSize int) {
 	hueChange := (newHue - oldHue + 6) % 6
 	lightnessChange := (newLightness - oldLightness + 3) % 3
 
-	i.Logger.Println(i, "H:", hueChange, "L:", lightnessChange)
+	i.Logger.Println(i, "ΔH:", hueChange, "ΔL:", lightnessChange)
 	switch lightnessChange {
 	case 0:
 		switch hueChange {

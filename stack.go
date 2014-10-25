@@ -114,7 +114,7 @@ func (s *stack) roll() {
 	}
 
 	if numRolls < 0 {
-		panic("Not implemented")
+		panic("Negative number of rolls not yet implemented")
 	}
 
 	for r := 0; r < numRolls; r++ {
