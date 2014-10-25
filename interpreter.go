@@ -30,7 +30,6 @@ func init() {
 	south = dpDir{0, 1}
 	west = dpDir{-1, 0}
 	north = dpDir{0, -1}
-
 }
 
 type ccDir int
@@ -50,6 +49,8 @@ func adj(p image.Point) [4]image.Point {
 	}
 }
 
+// A colorBlock is a contiguous block of pixels that
+// are all the same color.
 type colorBlock map[image.Point]struct{}
 
 func (cb colorBlock) String() string {
@@ -76,6 +77,7 @@ func (cb colorBlock) Bounds() (r image.Rectangle) {
 type interpreter struct {
 	// The program being interpreted
 	img image.Image
+
 	stack
 
 	// The Writer where program output is sent.
@@ -126,7 +128,7 @@ func (i interpreter) String() string {
 // Creates a new Piet interpreter for the given image.
 // The interpreter will use os.Stdin and os.Stdout, but these
 // can be changed (for example, for testing) by setting the
-// interpreters Reader or Writer fields.
+// interpreter's Reader or Writer fields.
 func New(img image.Image) interpreter {
 	return interpreter{
 		img:    img,
@@ -210,13 +212,13 @@ func (i *interpreter) inNum() {
 	if s.Scan() {
 		n, err := strconv.Atoi(string(s.Bytes()))
 		if err != nil {
-			i.Logger.Fatal(err)
+			i.Logger.Println(err)
 		}
 		i.push(n)
 		return
 	}
 	if err := s.Err(); err != nil {
-		i.Logger.Fatal(err)
+		i.Logger.Println(err)
 	}
 }
 
@@ -224,7 +226,7 @@ func (i *interpreter) inChar() {
 	buf := make([]byte, 1)
 	_, err := i.Read(buf)
 	if err != nil {
-		i.Logger.Fatal(err)
+		i.Logger.Println(err)
 	}
 	i.push(int(buf[0]))
 }
@@ -243,8 +245,8 @@ func (i *interpreter) getColorBlock() (block colorBlock) {
 	block = map[image.Point]struct{}{
 		i.pos: struct{}{},
 	}
-	// very naive implementation currently. At the very least we should be able
-	// to cache the current block.
+	// TODO: Optimize this. It's a very simple (read: probably slow) implementation
+	// currently. At the very least we should be able to cache the current block.
 	done := false
 	for !done {
 		done = true
@@ -318,6 +320,7 @@ func (i *interpreter) recovery() bool {
 	return true
 }
 
+// colorInfo return the hue and lightness of a Color.
 // hue: 0=red, 1=yellow, etc.
 // lightness: 0=light, 1=normal, 2=dark
 func colorInfo(c color.Color) (hue, lightness int) {
@@ -368,11 +371,11 @@ func colorInfo(c color.Color) (hue, lightness int) {
 	}
 }
 
-// Called when the color changes to cause the interpreter to do things.
+// Called when the color changes, to cause the interpreter to do an action.
 func (i *interpreter) colorChange(prevColor color.Color, blockSize int) {
 	if sameColors(color.White, prevColor) || sameColors(color.White, i.color()) {
-		return
 		i.Logger.Println(i, "Moving to/from white: no command to execute")
+		return
 	}
 
 	oldHue, oldLightness := colorInfo(prevColor)
